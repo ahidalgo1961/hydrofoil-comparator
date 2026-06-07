@@ -334,13 +334,16 @@ function processFrame(video, canvas, ctx, type, record = false) {
         const leftHip = landmarks[23];
         const rightHip = landmarks[24];
         
+        // Anclamos la X en el centro del torso, pero la Y la bajamos a las caderas
+        // para asegurar que las piernas y la tabla entren perfectamente en el encuadre.
         const cx = (leftShoulder.x + rightShoulder.x + leftHip.x + rightHip.x) / 4;
-        const cy = (leftShoulder.y + rightShoulder.y + leftHip.y + rightHip.y) / 4;
+        const cy = (leftHip.y + rightHip.y) / 2;
         
-        // La altura del torso nos da una referencia estable para el Zoom (evita que palpite)
-        const torsoHeight = Math.max(0.05, Math.abs(((leftHip.y + rightHip.y)/2) - ((leftShoulder.y + rightShoulder.y)/2)));
-        const rh = Math.max(torsoHeight * 2.8, 0.1); // El cuerpo total suele ser 2.8 veces el torso
-        const rw = rh * 0.6; // Proporción visual fija
+        // La altura del torso nos da una referencia estable para el Zoom
+        const torsoHeight = Math.max(0.05, Math.abs(cy - ((leftShoulder.y + rightShoulder.y)/2)));
+        // Aumentamos la altura de la caja a 4 veces el torso para incluir la tabla entera
+        const rh = Math.max(torsoHeight * 4.0, 0.1); 
+        const rw = rh * 0.55; // Proporción visual fija ligeramente más ancha
         
         let targetZ = 0.55 / rh; // AI Escala base
         targetZ = Math.max(1, Math.min(targetZ, 6)); // Límite de Zoom IA
