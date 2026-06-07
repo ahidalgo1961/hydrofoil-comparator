@@ -353,14 +353,30 @@ function processFrame(video, canvas, ctx, type, record = false) {
         const rh = Math.max(torsoHeight * 4.0, 0.1); 
         const rw = rh * 0.55; // Proporción visual fija ligeramente más ancha
         
-        let targetZ = 0.55 / rh; // AI Escala base
-        targetZ = Math.max(1, Math.min(targetZ, 6)); // Límite de Zoom IA
-        let targetPx = (0.5 - cx) * 100; // AI Desplazamiento en %
-        let targetPy = (0.5 - cy) * 100;
+        // --- CORRECCIÓN MATEMÁTICA DE LETTERBOXING ---
+        // Como el vídeo tiene "object-fit: contain", puede tener bandas negras (letterboxing).
+        // Si no compensamos esto, el cálculo de porcentajes falla y el rider "patina" por la pantalla.
+        const wrapper = getE(`${type}Transform`);
+        const wW = wrapper.clientWidth;
+        const wH = wrapper.clientHeight;
+        const vW = video.videoWidth;
+        const vH = video.videoHeight;
         
-        // Estabilización "Virtual Gimbal" (EMA) - Ultra suave
-        const smoothPos = 0.03;  // Paneo hiper estable
-        const smoothZoom = 0.005; // El zoom casi no cambia
+        const fitScale = Math.min(wW / vW, wH / vH);
+        const drawnW = vW * fitScale; // Ancho real del vídeo visible
+        const drawnH = vH * fitScale; // Alto real del vídeo visible
+        
+        // Calculamos el Zoom para que el alto del rider (rh) ocupe exactamente el 55% de la pantalla
+        let targetZ = (0.55 * wH) / (rh * drawnH); 
+        targetZ = Math.max(1, Math.min(targetZ, 6)); // Límite de Zoom IA
+        
+        // Ajustamos la traslación multiplicándola por la proporción del vídeo visible frente al contenedor
+        let targetPx = (drawnW / wW) * (0.5 - cx) * 100;
+        let targetPy = (drawnH / wH) * (0.5 - cy) * 100;
+        
+        // Estabilización "Virtual Gimbal" (EMA) - Aumentado un poco para que sea más reactivo
+        const smoothPos = 0.15;  // Fijación más firme al centro
+        const smoothZoom = 0.05; // Ajuste de zoom moderado
         cameraState[type].z += (targetZ - cameraState[type].z) * smoothZoom;
         cameraState[type].x += (targetPx - cameraState[type].x) * smoothPos;
         cameraState[type].y += (targetPy - cameraState[type].y) * smoothPos;
