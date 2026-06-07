@@ -325,30 +325,34 @@ function processFrame(video, canvas, ctx, type, record = false) {
             drawingUtils.drawLandmarks(landmark, { radius: 4, color: '#ffffff', lineWidth: 2, fillColor: color });
         }
 
-        // --- INICIO AUTO-FRAME (ROI Inteligente) ---
+        // --- INICIO AUTO-FRAME (ROI Inteligente y Estable) ---
         const landmarks = pose.landmarks[0];
-        let minX = 1, maxX = 0, minY = 1, maxY = 0;
-        for (const l of landmarks) {
-            if (l.x < minX) minX = l.x;
-            if (l.x > maxX) maxX = l.x;
-            if (l.y < minY) minY = l.y;
-            if (l.y > maxY) maxY = l.y;
-        }
-        const cx = (minX + maxX) / 2;
-        const cy = (minY + maxY) / 2;
-        const rw = Math.max(maxX - minX, 0.05);
-        const rh = Math.max(maxY - minY, 0.1); 
+        // En lugar de usar los extremos (manos/pies) que hacen "bailar" la caja,
+        // usamos el centro geométrico del torso (hombros y caderas) como ancla inamovible.
+        const leftShoulder = landmarks[11];
+        const rightShoulder = landmarks[12];
+        const leftHip = landmarks[23];
+        const rightHip = landmarks[24];
+        
+        const cx = (leftShoulder.x + rightShoulder.x + leftHip.x + rightHip.x) / 4;
+        const cy = (leftShoulder.y + rightShoulder.y + leftHip.y + rightHip.y) / 4;
+        
+        // La altura del torso nos da una referencia estable para el Zoom (evita que palpite)
+        const torsoHeight = Math.max(0.05, Math.abs(((leftHip.y + rightHip.y)/2) - ((leftShoulder.y + rightShoulder.y)/2)));
+        const rh = Math.max(torsoHeight * 2.8, 0.1); // El cuerpo total suele ser 2.8 veces el torso
+        const rw = rh * 0.6; // Proporción visual fija
         
         let targetZ = 0.55 / rh; // AI Escala base
         targetZ = Math.max(1, Math.min(targetZ, 6)); // Límite de Zoom IA
         let targetPx = (0.5 - cx) * 100; // AI Desplazamiento en %
         let targetPy = (0.5 - cy) * 100;
         
-        // Estabilización "Virtual Gimbal" (EMA)
-        const smoothing = 0.08;
-        cameraState[type].z += (targetZ - cameraState[type].z) * smoothing;
-        cameraState[type].x += (targetPx - cameraState[type].x) * smoothing;
-        cameraState[type].y += (targetPy - cameraState[type].y) * smoothing;
+        // Estabilización "Virtual Gimbal" (EMA) - Ultra suave
+        const smoothPos = 0.03;  // Paneo hiper estable
+        const smoothZoom = 0.005; // El zoom casi no cambia
+        cameraState[type].z += (targetZ - cameraState[type].z) * smoothZoom;
+        cameraState[type].x += (targetPx - cameraState[type].x) * smoothPos;
+        cameraState[type].y += (targetPy - cameraState[type].y) * smoothPos;
         
         const autoFrameCb = getE(`${type}AutoFrame`);
         if (autoFrameCb && autoFrameCb.checked) {
@@ -358,18 +362,16 @@ function processFrame(video, canvas, ctx, type, record = false) {
             ctx.lineWidth = 3;
             ctx.setLineDash([15, 10]); 
             
-            const marginX = 0.08; 
-            const marginY = 0.05;
-            const drawX = (minX - marginX) * canvas.width;
-            const drawY = (minY - marginY) * canvas.height;
-            const drawW = (rw + marginX * 2) * canvas.width;
-            const drawH = (rh + marginY * 2) * canvas.height;
+            const drawX = (cx - rw/2) * canvas.width;
+            const drawY = (cy - rh/2) * canvas.height;
+            const drawW = rw * canvas.width;
+            const drawH = rh * canvas.height;
             
             ctx.strokeRect(drawX, drawY, drawW, drawH);
             
             ctx.fillStyle = color;
             ctx.font = "bold 16px Arial";
-            ctx.fillText("AI ROI TRACKING", drawX, drawY - 10);
+            ctx.fillText("STABLE ROI", drawX, drawY - 10);
             ctx.restore();
 
             updateTransform(type);
