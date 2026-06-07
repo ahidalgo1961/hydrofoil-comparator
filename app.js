@@ -663,21 +663,39 @@ function generateDiagnosticReport() {
     diagnosticReport.innerHTML = html;
 }
 
-playPauseBtn.addEventListener('click', () => {
+playPauseBtn.addEventListener('click', async () => {
     if (!poseLandmarker) return alert("Espera a que cargue la IA.");
     
     // Detener modo bucle si está activo
     isLooping = false; cancelAnimationFrame(loopAnimId);
-    getE('playLoopBtn').innerText = '🔁 Ver Loop Sincronizado'; getE('playLoopBtn').style.backgroundColor = 'var(--accent-hover)';
+    getE('playLoopBtn').innerText = '🔄 Ver Loop Sincronizado'; getE('playLoopBtn').style.backgroundColor = 'var(--accent-hover)';
     
     analysisData = { user: { times: [], knee: [], back: [], cgHeight: [], ankle: [], arm: [], head: [], pitch: [] }, pro: { times: [], knee: [], back: [], cgHeight: [], ankle: [], arm: [], head: [], pitch: [] } };
+    diagnosticReport.innerHTML = '<p class="waiting-text">Sincronizando vídeos al punto de inicio...</p>';
+    playPauseBtn.innerText = '⏳ Sincronizando...'; playPauseBtn.disabled = true;
+
+    // Promesa para asegurar que el vídeo llega al frame exacto antes de leer el canvas
+    const seekVideo = (vid, time) => new Promise(resolve => {
+        if (Math.abs(vid.currentTime - time) < 0.02) return resolve();
+        const onSeeked = () => { vid.removeEventListener('seeked', onSeeked); resolve(); };
+        vid.addEventListener('seeked', onSeeked);
+        vid.currentTime = time;
+    });
+
+    await Promise.all([
+        seekVideo(userVideo, state.user.start),
+        seekVideo(proVideo, state.pro.start)
+    ]);
+
     diagnosticReport.innerHTML = '<p class="waiting-text">Procesando vectores y extrayendo métricas temporales...</p>';
-    userVideo.currentTime = state.user.start; proVideo.currentTime = state.pro.start;
-    isAnalyzing = true; playPauseBtn.innerText = '⏳ Procesando Análisis Integral...'; playPauseBtn.disabled = true;
+    isAnalyzing = true; 
+    playPauseBtn.innerText = '⏳ Procesando Análisis Integral...';
+    
     userVideo.play(); proVideo.play();
     if (animationId) cancelAnimationFrame(animationId);
     renderLoop();
 });
+
 initializeMediaPipe();
 
 function makeDraggable(el) {
