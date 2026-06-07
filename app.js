@@ -107,8 +107,8 @@ const updateTimeSpan = (t) => {
 
 function saveConfig() {
     const cfg = {
-        user: { start: state.user.start, end: state.user.end, endSet: state.user.endSet, zoom: getE('userZoom').value, panX: getE('userPanX').value, panY: getE('userPanY').value },
-        pro: { start: state.pro.start, end: state.pro.end, endSet: state.pro.endSet, zoom: getE('proZoom').value, panX: getE('proPanX').value, panY: getE('proPanY').value }
+        user: { start: state.user.start, startSet: state.user.startSet, end: state.user.end, endSet: state.user.endSet, zoom: getE('userZoom').value, panX: getE('userPanX').value, panY: getE('userPanY').value },
+        pro: { start: state.pro.start, startSet: state.pro.startSet, end: state.pro.end, endSet: state.pro.endSet, zoom: getE('proZoom').value, panX: getE('proPanX').value, panY: getE('proPanY').value }
     };
     localStorage.setItem('hydrofoil_config', JSON.stringify(cfg));
 }
@@ -256,7 +256,15 @@ try {
     const cfg = JSON.parse(localStorage.getItem('hydrofoil_config'));
     if (cfg) {
         ['user', 'pro'].forEach(p => {
-            if (cfg[p].start !== undefined) state[p].start = cfg[p].start;
+            if (cfg[p].start !== undefined) {
+                state[p].start = cfg[p].start;
+                // Auto-fix retrocompatible para configuraciones previas al parche
+                if (cfg[p].startSet === undefined && cfg[p].endSet === true) {
+                    state[p].startSet = true;
+                } else if (cfg[p].startSet !== undefined) {
+                    state[p].startSet = cfg[p].startSet;
+                }
+            }
             if (cfg[p].end !== undefined) state[p].end = cfg[p].end;
             if (cfg[p].endSet !== undefined) state[p].endSet = cfg[p].endSet;
             if (cfg[p].zoom) getE(`${p}Zoom`).value = cfg[p].zoom;
