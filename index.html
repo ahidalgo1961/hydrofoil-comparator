@@ -43,9 +43,11 @@
                     </div>
                     <div class="time-controls" style="grid-column: 1 / -1; display:flex; flex-direction:column; gap:8px;">
                         <div class="scrubber-container">
-                            <div class="scrubber-highlight" id="userScrubberHighlight"></div>
-                            <input type="range" id="userScrubber" min="0" value="0" step="0.01">
-                        </div>
+                        <div id="userScrubberHighlight" class="scrubber-highlight user-highlight"></div>
+                        <div id="userStartMarker" class="marker-handle" style="display:none;" title="Inicio del Bucle"></div>
+                        <div id="userEndMarker" class="marker-handle" style="display:none;" title="Fin del Bucle"></div>
+                        <input type="range" id="userScrubber" class="slider" min="0" max="100" value="0" step="0.1">
+                    </div>
                         <div style="display:flex; gap:10px; align-items:center;">
                             <button id="userSetStartBtn" class="btn">Marcar Inicio</button>
                             <button id="userSetEndBtn" class="btn">Marcar Fin</button>
@@ -97,9 +99,11 @@
                     </div>
                     <div class="time-controls" style="grid-column: 1 / -1; display:flex; flex-direction:column; gap:8px;">
                         <div class="scrubber-container">
-                            <div class="scrubber-highlight" id="proScrubberHighlight"></div>
-                            <input type="range" id="proScrubber" min="0" value="0" step="0.01">
-                        </div>
+                        <div id="proScrubberHighlight" class="scrubber-highlight pro-highlight"></div>
+                        <div id="proStartMarker" class="marker-handle" style="display:none;" title="Inicio del Bucle"></div>
+                        <div id="proEndMarker" class="marker-handle" style="display:none;" title="Fin del Bucle"></div>
+                        <input type="range" id="proScrubber" class="slider" min="0" max="100" value="0" step="0.1">
+                    </div>
                         <div style="display:flex; gap:10px; align-items:center;">
                             <button id="proSetStartBtn" class="btn">Marcar Inicio</button>
                             <button id="proSetEndBtn" class="btn">Marcar Fin</button>

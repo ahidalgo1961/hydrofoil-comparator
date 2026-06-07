@@ -58,20 +58,40 @@ function handleVideoLoad(type, videoEl) {
 }
 handleVideoLoad('user', userVideo); handleVideoLoad('pro', proVideo);
 
-const updateScrubberHighlight = (t) => {
-    const video = t === 'user' ? userVideo : proVideo;
-    const duration = video.duration || 1;
-    const start = Math.max(0, state[t].start);
-    const end = Math.min(duration, state[t].end);
-    const highlight = getE(`${t}ScrubberHighlight`);
-    if (!highlight) return;
-    
-    const leftPct = (start / duration) * 100;
-    const widthPct = Math.max(0, ((end - start) / duration) * 100);
-    highlight.style.left = `${leftPct}%`;
-    highlight.style.width = `${widthPct}%`;
-    highlight.style.backgroundColor = t === 'user' ? '#3b82f6' : '#10b981';
-};
+function updateScrubberHighlight(type) {
+    const v = type === 'user' ? userVideo : proVideo;
+    if (!v.duration) return;
+
+    const startMarker = getE(`${type}StartMarker`);
+    const endMarker = getE(`${type}EndMarker`);
+    const highlight = getE(`${type}ScrubberHighlight`);
+
+    if (state[type].startSet) {
+        const startPct = (state[type].start / v.duration) * 100;
+        if(startMarker) {
+            startMarker.style.display = 'block';
+            startMarker.style.left = `${startPct}%`;
+        }
+    }
+    if (state[type].endSet) {
+        const endPct = (state[type].end / v.duration) * 100;
+        if(endMarker) {
+            endMarker.style.display = 'block';
+            endMarker.style.left = `${endPct}%`;
+        }
+    }
+    if (state[type].startSet && state[type].endSet) {
+        const startPct = (state[type].start / v.duration) * 100;
+        const endPct = (state[type].end / v.duration) * 100;
+        if (highlight) {
+            highlight.style.display = 'block';
+            highlight.style.left = `${startPct}%`;
+            highlight.style.width = `${endPct - startPct}%`;
+        }
+    } else if (highlight) {
+        highlight.style.display = 'none';
+    }
+}
 
 const updateTimeSpan = (t) => {
     getE(`${t}TimeSpan`).innerText = `${state[t].start.toFixed(2)}s - ${state[t].end.toFixed(2)}s`;
@@ -602,3 +622,54 @@ function makeDraggable(el) {
 }
 makeDraggable(getE('userHudOverlay'));
 makeDraggable(getE('proHudOverlay'));
+
+function setupDraggableMarkers(type) {
+    const container = getE(type + 'Scrubber').parentElement;
+    const startMarker = getE(type + 'StartMarker');
+    const endMarker = getE(type + 'EndMarker');
+    const video = type === 'user' ? userVideo : proVideo;
+
+    function attachDrag(marker, isStart) {
+        if (!marker) return;
+        let isDragging = false;
+        
+        marker.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            e.preventDefault(); 
+            e.stopPropagation(); 
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (!isDragging || !video.duration) return;
+            const rect = container.getBoundingClientRect();
+            let x = e.clientX - rect.left;
+            x = Math.max(0, Math.min(x, rect.width));
+            
+            let newTime = (x / rect.width) * video.duration;
+            
+            if (isStart) {
+                state[type].start = Math.min(newTime, state[type].endSet ? state[type].end - 0.05 : video.duration);
+                state[type].startSet = true;
+                video.currentTime = state[type].start;
+            } else {
+                state[type].end = Math.max(newTime, state[type].startSet ? state[type].start + 0.05 : 0);
+                state[type].endSet = true;
+                video.currentTime = state[type].end;
+            }
+            updateTimeSpan(type);
+            updateScrubberHighlight(type);
+        });
+
+        window.addEventListener('mouseup', () => {
+            if (isDragging) {
+                isDragging = false;
+                saveConfig();
+            }
+        });
+    }
+    
+    attachDrag(startMarker, true);
+    attachDrag(endMarker, false);
+}
+setupDraggableMarkers('user');
+setupDraggableMarkers('pro');
