@@ -163,9 +163,20 @@ getE('playLoopBtn').addEventListener('click', () => {
 });
 
 ['user', 'pro'].forEach(p => { 
+    const v = p === 'user' ? userVideo : proVideo;
+    
     getE(`${p}PlayBtn`).addEventListener('click', () => {
-        const v = p === 'user' ? userVideo : proVideo;
         if (v.paused) v.play(); else v.pause();
+    });
+    
+    getE(`${p}PrevFrameBtn`).addEventListener('click', () => {
+        v.pause();
+        v.currentTime = Math.max(0, v.currentTime - 0.0333);
+    });
+    
+    getE(`${p}NextFrameBtn`).addEventListener('click', () => {
+        v.pause();
+        v.currentTime = Math.min(v.duration || 0, v.currentTime + 0.0333);
     });
     
     ['Zoom', 'PanX', 'PanY'].forEach(c => { 
@@ -293,7 +304,22 @@ function processFrame(video, canvas, ctx, type, record = false) {
 
             // 3. RENDERIZADO VISUAL EN TIEMPO REAL (HUD)
             const hudMode = getE('hudMode').value;
-            if (hudMode !== 'none') {
+            const overlay = getE(`${type}HudOverlay`);
+            
+            if (hudMode === 'none') {
+                overlay.style.display = 'none';
+            } else if (hudMode === 'corner') {
+                overlay.style.display = 'block';
+                overlay.innerHTML = `
+                    <div class="hud-overlay-title" style="color:${color}">TELEMETRÍA ${type.toUpperCase()}</div>
+                    <div class="hud-overlay-stat"><span>🏄 Tabla:</span> <span>${pitch.toFixed(1)}°</span></div>
+                    <div class="hud-overlay-stat"><span>🦵 Rodilla:</span> <span>${kneeAng.toFixed(1)}°</span></div>
+                    <div class="hud-overlay-stat"><span>🤸 Espalda:</span> <span>${backAng.toFixed(1)}°</span></div>
+                    <div class="hud-overlay-stat"><span>🦾 Brazos:</span> <span>${armAng.toFixed(1)}°</span></div>
+                    <div class="hud-overlay-stat"><span>⚖️ Alt. CG:</span> <span>${cgHeight.toFixed(1)}cm</span></div>
+                `;
+            } else if (hudMode === 'anchored') {
+                overlay.style.display = 'none';
                 ctx.save();
                 // Utilidad para asegurar legibilidad usando trazo negro alrededor del texto blanco
                 const drawText = (txt, x, y, col) => {
@@ -301,38 +327,16 @@ function processFrame(video, canvas, ctx, type, record = false) {
                     ctx.fillStyle = col || 'white'; ctx.fillText(txt, x, y);
                 };
 
-                if (hudMode === 'corner') {
-                    // HUD Estilo Panel Fijo de Datos
-                    const scale = canvas.width / 1280; // Escalar responsivamente
-                    const bx = 15*scale, by = 15*scale, bw = 240*scale, bh = 180*scale;
-                    
-                    ctx.fillStyle = 'rgba(0,0,0,0.6)';
-                    ctx.fillRect(bx, by, bw, bh);
-                    
-                    ctx.font = `bold ${24*scale}px Arial`;
-                    ctx.fillStyle = color;
-                    ctx.fillText(type === 'user' ? 'TELEMETRÍA TÚ' : 'TELEMETRÍA PRO', bx+15*scale, by+35*scale);
-                    
-                    ctx.font = `bold ${18*scale}px Arial`;
-                    ctx.fillStyle = 'white';
-                    ctx.fillText(`🏄 Tabla: ${pitch.toFixed(1)}°`, bx+15*scale, by+70*scale);
-                    ctx.fillText(`🦵 Rodilla: ${kneeAng.toFixed(1)}°`, bx+15*scale, by+95*scale);
-                    ctx.fillText(`🤸 Espalda: ${backAng.toFixed(1)}°`, bx+15*scale, by+120*scale);
-                    ctx.fillText(`🦾 Brazos: ${armAng.toFixed(1)}°`, bx+15*scale, by+145*scale);
-                    ctx.fillText(`⚖️ Alt. CG: ${cgHeight.toFixed(1)}cm`, bx+15*scale, by+170*scale);
+                // HUD Estilo Anclado al Cuerpo (Realidad Aumentada)
+                ctx.font = `bold ${20 * (canvas.width/1280)}px Arial`;
+                // Convertir de coordenadas relativas [0..1] a píxeles del canvas actual
+                const toPx = (i) => ({ x: screenPts[i].x * canvas.width, y: screenPts[i].y * canvas.height });
                 
-                } else if (hudMode === 'anchored') {
-                    // HUD Estilo Anclado al Cuerpo (Realidad Aumentada)
-                    ctx.font = `bold ${20 * (canvas.width/1280)}px Arial`;
-                    // Convertir de coordenadas relativas [0..1] a píxeles del canvas actual
-                    const toPx = (i) => ({ x: screenPts[i].x * canvas.width, y: screenPts[i].y * canvas.height });
-                    
-                    drawText(`🦵 ${kneeAng.toFixed(0)}°`, toPx(26).x + 15, toPx(26).y, color);
-                    drawText(`🤸 ${backAng.toFixed(0)}°`, toPx(24).x - 60, toPx(24).y, color);
-                    drawText(`🏄 ${pitch.toFixed(0)}°`, toPx(31).x, toPx(31).y + 30, color);
-                    drawText(`⚖️ ${cgHeight.toFixed(0)}cm`, toPx(24).x + 20, toPx(24).y - 20, color);
-                    drawText(`🦾 ${armAng.toFixed(0)}°`, toPx(14).x + 15, toPx(14).y, color);
-                }
+                drawText(`🦵 ${kneeAng.toFixed(0)}°`, toPx(26).x + 15, toPx(26).y, color);
+                drawText(`🤸 ${backAng.toFixed(0)}°`, toPx(24).x - 60, toPx(24).y, color);
+                drawText(`🏄 ${pitch.toFixed(0)}°`, toPx(31).x, toPx(31).y + 30, color);
+                drawText(`⚖️ ${cgHeight.toFixed(0)}cm`, toPx(24).x + 20, toPx(24).y - 20, color);
+                drawText(`🦾 ${armAng.toFixed(0)}°`, toPx(14).x + 15, toPx(14).y, color);
                 ctx.restore();
             }
         }
@@ -513,3 +517,33 @@ playPauseBtn.addEventListener('click', () => {
     renderLoop();
 });
 initializeMediaPipe();
+
+function makeDraggable(el) {
+    if(!el) return;
+    let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+    el.onmousedown = dragMouseDown;
+    function dragMouseDown(e) {
+        e = e || window.event;
+        e.preventDefault();
+        pos3 = e.clientX;
+        pos4 = e.clientY;
+        document.onmouseup = closeDragElement;
+        document.onmousemove = elementDrag;
+    }
+    function elementDrag(e) {
+        e = e || window.event;
+        e.preventDefault();
+        pos1 = pos3 - e.clientX;
+        pos2 = pos4 - e.clientY;
+        pos3 = e.clientX;
+        pos4 = e.clientY;
+        el.style.top = (el.offsetTop - pos2) + "px";
+        el.style.left = (el.offsetLeft - pos1) + "px";
+    }
+    function closeDragElement() {
+        document.onmouseup = null;
+        document.onmousemove = null;
+    }
+}
+makeDraggable(getE('userHudOverlay'));
+makeDraggable(getE('proHudOverlay'));
