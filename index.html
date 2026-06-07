@@ -29,7 +29,11 @@
                 </div>
                 <div class="controls-grid">
                     <div class="control-group">
-                        <label>Zoom</label><input type="range" id="userZoom" min="0.5" max="3" step="0.05" value="1">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <label>Zoom</label>
+                            <label style="font-size:0.85rem; cursor:pointer; color:#3b82f6;"><input type="checkbox" id="userAutoFrame"> 🎯 Auto-Frame</label>
+                        </div>
+                        <input type="range" id="userZoom" min="1" max="4" step="0.1" value="1">
                     </div>
                     <div class="control-group">
                         <label>Posición X</label><input type="range" id="userPanX" min="-50" max="50" value="0">
@@ -79,7 +83,11 @@
                 </div>
                 <div class="controls-grid">
                     <div class="control-group">
-                        <label>Zoom</label><input type="range" id="proZoom" min="0.5" max="3" step="0.05" value="1">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <label>Zoom</label>
+                            <label style="font-size:0.85rem; cursor:pointer; color:#10b981;"><input type="checkbox" id="proAutoFrame"> 🎯 Auto-Frame</label>
+                        </div>
+                        <input type="range" id="proZoom" min="1" max="4" step="0.1" value="1">
                     </div>
                     <div class="control-group">
                         <label>Posición X</label><input type="range" id="proPanX" min="-50" max="50" value="0">

@@ -187,12 +187,37 @@ getE('playLoopBtn').addEventListener('click', () => {
     }); 
 });
 
-function updateTransform(prefix) {
-    const zoom = getE(`${prefix}Zoom`).value;
-    const panX = getE(`${prefix}PanX`).value;
-    const panY = getE(`${prefix}PanY`).value;
-    getE(`${prefix}Transform`).style.transform = `scale(${zoom}) translate(${panX}%, ${panY}%)`;
+// Estado virtual de cámara para Auto-Framing (EMA Gimbal)
+let cameraState = {
+    user: { z: 1, x: 0, y: 0 },
+    pro: { z: 1, x: 0, y: 0 }
+};
+
+function updateTransform(type) {
+    const wrapper = getE(`${type}Transform`);
+    const autoFrameCb = getE(`${type}AutoFrame`);
+    
+    if (autoFrameCb && autoFrameCb.checked) {
+        wrapper.style.transform = `scale(${cameraState[type].z}) translate(${cameraState[type].x}%, ${cameraState[type].y}%)`;
+    } else {
+        const z = getE(`${type}Zoom`).value;
+        const px = getE(`${type}PanX`).value;
+        const py = getE(`${type}PanY`).value;
+        wrapper.style.transform = `scale(${z}) translate(${px}%, ${py}%)`;
+    }
 }
+
+['user', 'pro'].forEach(type => {
+    const autoFrameCb = getE(`${type}AutoFrame`);
+    if (autoFrameCb) {
+        autoFrameCb.addEventListener('change', () => {
+            getE(`${type}Zoom`).disabled = autoFrameCb.checked;
+            getE(`${type}PanX`).disabled = autoFrameCb.checked;
+            getE(`${type}PanY`).disabled = autoFrameCb.checked;
+            updateTransform(type);
+        });
+    }
+});
 
 // Cargar configuración de LocalStorage si existe
 try {
@@ -267,6 +292,36 @@ function processFrame(video, canvas, ctx, type, record = false) {
             drawingUtils.drawConnectors(landmark, PoseLandmarker.POSE_CONNECTIONS, { color: color, lineWidth: 3 });
             drawingUtils.drawLandmarks(landmark, { radius: 4, color: '#ffffff', lineWidth: 2, fillColor: color });
         }
+
+        // --- INICIO AUTO-FRAME (ROI Inteligente) ---
+        const landmarks = pose.landmarks[0];
+        let minX = 1, maxX = 0, minY = 1, maxY = 0;
+        for (const l of landmarks) {
+            if (l.x < minX) minX = l.x;
+            if (l.x > maxX) maxX = l.x;
+            if (l.y < minY) minY = l.y;
+            if (l.y > maxY) maxY = l.y;
+        }
+        const cx = (minX + maxX) / 2;
+        const cy = (minY + maxY) / 2;
+        const rh = Math.max(maxY - minY, 0.1); 
+        
+        let targetZ = 0.55 / rh; // Escalar para que ocupe ~55% del alto
+        targetZ = Math.max(1, Math.min(targetZ, 6)); // Límite de Zoom
+        let targetPx = (0.5 - cx) * 100; // Desplazamiento en %
+        let targetPy = (0.5 - cy) * 100;
+        
+        // Estabilización "Virtual Gimbal" (EMA)
+        const smoothing = 0.08;
+        cameraState[type].z += (targetZ - cameraState[type].z) * smoothing;
+        cameraState[type].x += (targetPx - cameraState[type].x) * smoothing;
+        cameraState[type].y += (targetPy - cameraState[type].y) * smoothing;
+        
+        const autoFrameCb = getE(`${type}AutoFrame`);
+        if (autoFrameCb && autoFrameCb.checked) {
+            updateTransform(type);
+        }
+        // --- FIN AUTO-FRAME ---
 
         if (pose.worldLandmarks && pose.worldLandmarks.length > 0) {
             const world = pose.worldLandmarks[0];
