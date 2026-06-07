@@ -130,13 +130,16 @@ function saveConfig() {
     });
     getE(`${type}SetStartBtn`).addEventListener('click', () => {
         state[type].start = type === 'user' ? userVideo.currentTime : proVideo.currentTime;
+        state[type].startSet = true;
         updateTimeSpan(type);
+        updateScrubberHighlight(type);
         saveConfig();
     });
     getE(`${type}SetEndBtn`).addEventListener('click', () => {
         state[type].end = type === 'user' ? userVideo.currentTime : proVideo.currentTime;
         state[type].endSet = true;
         updateTimeSpan(type);
+        updateScrubberHighlight(type);
         saveConfig();
     });
 
