@@ -345,9 +345,12 @@ function processFrame(video, canvas, ctx, type, record = false) {
         const scaledRadius = Math.max(3, 4 * baseScale);
         const scaledBorder = Math.max(1.5, 2 * baseScale);
         
-        for (const landmark of pose.landmarks) {
-            drawingUtils.drawConnectors(landmark, PoseLandmarker.POSE_CONNECTIONS, { color: color, lineWidth: scaledLineWidth });
-            drawingUtils.drawLandmarks(landmark, { radius: scaledRadius, color: '#ffffff', lineWidth: scaledBorder, fillColor: color });
+        const showNodesCb = getE(`${type}ShowNodes`);
+        if (!showNodesCb || showNodesCb.checked) {
+            for (const landmark of pose.landmarks) {
+                drawingUtils.drawConnectors(landmark, PoseLandmarker.POSE_CONNECTIONS, { color: color, lineWidth: scaledLineWidth });
+                drawingUtils.drawLandmarks(landmark, { radius: scaledRadius, color: '#ffffff', lineWidth: scaledBorder, fillColor: color });
+            }
         }
 
         // --- INICIO AUTO-FRAME (ROI Inteligente y Estable) ---
