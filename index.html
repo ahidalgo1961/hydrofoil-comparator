@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hydrofoil PRO Comparator (3D Diagnostic)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header class="app-header">
+        <h1>Hydrofoil <span>Diagnóstico 3D</span></h1>
+        <p>Análisis biomecánico vectorial (X, Y, Z). Ajusta el encuadre y marca el inicio y fin del bombeo.</p>
+    </header>
+
+        <div class="video-grid">
+            <!-- PANEL USUARIO -->
+            <div class="video-panel">
+                <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center;">
+                    <span>Tú (Grabación Local)</span>
+                    <button id="userFullscreenBtn" class="btn" style="padding: 2px 8px; font-size: 0.8rem;" title="Pantalla Completa">⛶</button>
+                </div>
+                <div class="video-container">
+                    <div class="transform-wrapper" id="userTransform">
+                        <video id="userVideo" playsinline muted loop></video>
+                        <canvas id="userCanvas"></canvas>
+                    </div>
+                </div>
+                <div class="controls-grid">
+                    <div class="control-group">
+                        <label>Zoom</label><input type="range" id="userZoom" min="0.5" max="3" step="0.05" value="1">
+                    </div>
+                    <div class="control-group">
+                        <label>Posición X</label><input type="range" id="userPanX" min="-50" max="50" value="0">
+                    </div>
+                    <div class="control-group">
+                        <label>Posición Y</label><input type="range" id="userPanY" min="-50" max="50" value="0">
+                    </div>
+                    <div class="time-controls" style="grid-column: 1 / -1; display:flex; flex-direction:column; gap:8px;">
+                        <div class="scrubber-container">
+                            <div class="scrubber-highlight" id="userScrubberHighlight"></div>
+                            <input type="range" id="userScrubber" min="0" value="0" step="0.01">
+                        </div>
+                        <div style="display:flex; gap:10px; align-items:center;">
+                            <button id="userSetStartBtn" class="btn">Marcar Inicio</button>
+                            <button id="userSetEndBtn" class="btn">Marcar Fin</button>
+                            <span id="userTimeSpan" class="time-span">0.00s - 5.00s</span>
+                        </div>
+                    </div>
+                    <div class="action-controls" style="grid-column: 1 / -1; display:flex; gap:10px;">
+                        <button id="userPlayBtn" class="btn" style="flex:1">▶ Reproducir / Pausa</button>
+                        <select id="userPlayMode" class="btn" style="flex:1; text-align:center;">
+                            <option value="range">Solo Franja (Bucle)</option>
+                            <option value="full">Vídeo Completo</option>
+                        </select>
+                    </div>
+                </div>
+                <label class="custom-file-upload">
+                    <input type="file" id="userVideoUpload" accept="video/*">
+                    📁 Cargar Mi Video
+                </label>
+            </div>
+
+            <!-- PANEL PRO -->
+            <div class="video-panel">
+                <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center;">
+                    <span>Profesional (Referencia)</span>
+                    <button id="proFullscreenBtn" class="btn" style="padding: 2px 8px; font-size: 0.8rem;" title="Pantalla Completa">⛶</button>
+                </div>
+                <div class="video-container">
+                    <div class="transform-wrapper" id="proTransform">
+                        <video id="proVideo" playsinline muted loop></video>
+                        <canvas id="proCanvas"></canvas>
+                    </div>
+                </div>
+                <div class="controls-grid">
+                    <div class="control-group">
+                        <label>Zoom</label><input type="range" id="proZoom" min="0.5" max="3" step="0.05" value="1">
+                    </div>
+                    <div class="control-group">
+                        <label>Posición X</label><input type="range" id="proPanX" min="-50" max="50" value="0">
+                    </div>
+                    <div class="control-group">
+                        <label>Posición Y</label><input type="range" id="proPanY" min="-50" max="50" value="0">
+                    </div>
+                    <div class="time-controls" style="grid-column: 1 / -1; display:flex; flex-direction:column; gap:8px;">
+                        <div class="scrubber-container">
+                            <div class="scrubber-highlight" id="proScrubberHighlight"></div>
+                            <input type="range" id="proScrubber" min="0" value="0" step="0.01">
+                        </div>
+                        <div style="display:flex; gap:10px; align-items:center;">
+                            <button id="proSetStartBtn" class="btn">Marcar Inicio</button>
+                            <button id="proSetEndBtn" class="btn">Marcar Fin</button>
+                            <span id="proTimeSpan" class="time-span">0.00s - 5.00s</span>
+                        </div>
+                    </div>
+                    <div class="action-controls" style="grid-column: 1 / -1; display:flex; gap:10px;">
+                        <button id="proPlayBtn" class="btn" style="flex:1">▶ Reproducir / Pausa</button>
+                        <select id="proPlayMode" class="btn" style="flex:1; text-align:center;">
+                            <option value="range">Solo Franja (Bucle)</option>
+                            <option value="full">Vídeo Completo</option>
+                        </select>
+                    </div>
+                </div>
+                <label class="custom-file-upload">
+                    <input type="file" id="proVideoUpload" accept="video/*">
+                    📁 Cargar Video PRO
+                </label>
+            </div>
+        </div>
+
+        <div style="display: flex; gap: 10px; margin-bottom: 10px; align-items: center; justify-content: center; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px;">
+            <label style="font-weight: bold; color: var(--accent-color); font-size: 0.9rem;">👁️ Visualización en Vivo:</label>
+            <select id="hudMode" class="btn" style="background: rgba(255,255,255,0.1); font-size: 0.9rem;">
+                <option value="corner">HUD Esquina (Panel de Datos)</option>
+                <option value="anchored">Datos Anclados al Cuerpo</option>
+                <option value="none">Solo Esqueleto</option>
+            </select>
+        </div>
+
+        <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+            <button id="playLoopBtn" class="btn primary" style="flex: 1; background-color: var(--accent-hover);">🔁 Ver Loop Sincronizado</button>
+            <button id="playPauseBtn" class="btn primary" style="flex: 2;">▶ Iniciar Análisis 3D</button>
+        </div>
+
+    <section class="controls-feedback">
+        <div class="feedback-panel">
+            <div id="diagnosticReport" class="report-box">
+                <p class="waiting-text">Ajusta los encuadres, recorta los tiempos y presiona Iniciar para procesar la biomecánica 3D.</p>
+            </div>
+        </div>
+    </section>
+
+    <script type="module" src="app.js"></script>
+</body>
+</html>
