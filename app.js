@@ -320,9 +320,17 @@ function processFrame(video, canvas, ctx, type, record = false) {
     if (pose && pose.landmarks && pose.landmarks.length > 0) {
         const drawingUtils = new DrawingUtils(ctx);
         const color = type === 'user' ? '#3b82f6' : '#10b981'; // Azul y Verde
+        
+        // Escalar el tamaño de las líneas y nodos según la resolución nativa del vídeo
+        // para que se vean del mismo grosor sin importar si es 480p o 4K
+        const baseScale = Math.max(canvas.width, canvas.height) / 1000;
+        const scaledLineWidth = Math.max(2, 3 * baseScale);
+        const scaledRadius = Math.max(3, 4 * baseScale);
+        const scaledBorder = Math.max(1.5, 2 * baseScale);
+        
         for (const landmark of pose.landmarks) {
-            drawingUtils.drawConnectors(landmark, PoseLandmarker.POSE_CONNECTIONS, { color: color, lineWidth: 3 });
-            drawingUtils.drawLandmarks(landmark, { radius: 4, color: '#ffffff', lineWidth: 2, fillColor: color });
+            drawingUtils.drawConnectors(landmark, PoseLandmarker.POSE_CONNECTIONS, { color: color, lineWidth: scaledLineWidth });
+            drawingUtils.drawLandmarks(landmark, { radius: scaledRadius, color: '#ffffff', lineWidth: scaledBorder, fillColor: color });
         }
 
         // --- INICIO AUTO-FRAME (ROI Inteligente y Estable) ---
