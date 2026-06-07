@@ -22,8 +22,15 @@ let analysisData = {
 async function initializeMediaPipe() {
     const vision = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm");
     poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
-        baseOptions: { modelAssetPath: `https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task`, delegate: "GPU" },
-        runningMode: "VIDEO", numPoses: 1
+        baseOptions: {
+            modelAssetPath: `https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_heavy/float16/1/pose_landmarker_heavy.task`,
+            delegate: 'GPU'
+        },
+        runningMode: 'IMAGE',
+        numPoses: 1,
+        minPoseDetectionConfidence: 0.5,
+        minPosePresenceConfidence: 0.5,
+        minTrackingConfidence: 0.5
     });
     diagnosticReport.innerHTML = '<p class="good">✅ IA Cargada. Usa la línea de tiempo para enmarcar el bombeo.</p>';
 }
@@ -298,7 +305,7 @@ function processFrame(video, canvas, ctx, type, record = false) {
 
     let pose;
     if (video.currentTime !== cachedTime[type] || !video.paused) {
-        pose = poseLandmarker.detectForVideo(video, performance.now());
+        pose = poseLandmarker.detect(video);
         cachedPose[type] = pose;
         cachedTime[type] = video.currentTime;
     } else {
