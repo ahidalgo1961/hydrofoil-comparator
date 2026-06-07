@@ -223,13 +223,17 @@ let cameraState = {
 function updateTransform(type) {
     const wrapper = getE(`${type}Transform`);
     const autoFrameCb = getE(`${type}AutoFrame`);
+    const z = parseFloat(getE(`${type}Zoom`).value);
+    const px = parseFloat(getE(`${type}PanX`).value);
+    const py = parseFloat(getE(`${type}PanY`).value);
     
     if (autoFrameCb && autoFrameCb.checked) {
-        wrapper.style.transform = `scale(${cameraState[type].z}) translate(${cameraState[type].x}%, ${cameraState[type].y}%)`;
+        // El AI tracking base se combina dinámicamente con los sliders manuales
+        const finalZ = cameraState[type].z * z;
+        const finalPx = cameraState[type].x + px;
+        const finalPy = cameraState[type].y + py;
+        wrapper.style.transform = `scale(${finalZ}) translate(${finalPx}%, ${finalPy}%)`;
     } else {
-        const z = getE(`${type}Zoom`).value;
-        const px = getE(`${type}PanX`).value;
-        const py = getE(`${type}PanY`).value;
         wrapper.style.transform = `scale(${z}) translate(${px}%, ${py}%)`;
     }
 }
@@ -238,9 +242,7 @@ function updateTransform(type) {
     const autoFrameCb = getE(`${type}AutoFrame`);
     if (autoFrameCb) {
         autoFrameCb.addEventListener('change', () => {
-            getE(`${type}Zoom`).disabled = autoFrameCb.checked;
-            getE(`${type}PanX`).disabled = autoFrameCb.checked;
-            getE(`${type}PanY`).disabled = autoFrameCb.checked;
+            // Ya no deshabilitamos los sliders, ahora sirven para tunear el Auto-Frame
             updateTransform(type);
         });
     }
@@ -331,11 +333,12 @@ function processFrame(video, canvas, ctx, type, record = false) {
         }
         const cx = (minX + maxX) / 2;
         const cy = (minY + maxY) / 2;
+        const rw = Math.max(maxX - minX, 0.05);
         const rh = Math.max(maxY - minY, 0.1); 
         
-        let targetZ = 0.55 / rh; // Escalar para que ocupe ~55% del alto
-        targetZ = Math.max(1, Math.min(targetZ, 6)); // Límite de Zoom
-        let targetPx = (0.5 - cx) * 100; // Desplazamiento en %
+        let targetZ = 0.55 / rh; // AI Escala base
+        targetZ = Math.max(1, Math.min(targetZ, 6)); // Límite de Zoom IA
+        let targetPx = (0.5 - cx) * 100; // AI Desplazamiento en %
         let targetPy = (0.5 - cy) * 100;
         
         // Estabilización "Virtual Gimbal" (EMA)
@@ -346,6 +349,26 @@ function processFrame(video, canvas, ctx, type, record = false) {
         
         const autoFrameCb = getE(`${type}AutoFrame`);
         if (autoFrameCb && autoFrameCb.checked) {
+            // Dibujar el ROI Tracker Visual
+            ctx.save();
+            ctx.strokeStyle = color; 
+            ctx.lineWidth = 3;
+            ctx.setLineDash([15, 10]); 
+            
+            const marginX = 0.08; 
+            const marginY = 0.05;
+            const drawX = (minX - marginX) * canvas.width;
+            const drawY = (minY - marginY) * canvas.height;
+            const drawW = (rw + marginX * 2) * canvas.width;
+            const drawH = (rh + marginY * 2) * canvas.height;
+            
+            ctx.strokeRect(drawX, drawY, drawW, drawH);
+            
+            ctx.fillStyle = color;
+            ctx.font = "bold 16px Arial";
+            ctx.fillText("AI ROI TRACKING", drawX, drawY - 10);
+            ctx.restore();
+
             updateTransform(type);
         }
         // --- FIN AUTO-FRAME ---
