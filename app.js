@@ -180,13 +180,22 @@ getE('playLoopBtn').addEventListener('click', () => {
     isLooping = !isLooping;
     if (isLooping) {
         userVideo.currentTime = state.user.start; proVideo.currentTime = state.pro.start;
+        
+        // Ajuste automático de velocidad para una sincronización visual perfecta
+        const uDur = state.user.end - state.user.start;
+        const pDur = state.pro.end - state.pro.start;
+        if (uDur > 0 && pDur > 0) {
+            userVideo.playbackRate = uDur / pDur;
+        }
+        
         userVideo.play(); proVideo.play();
-        getE('playLoopBtn').innerText = '⏹ Detener Loop';
+        getE('playLoopBtn').innerText = '⏹ Detener Comparación';
         getE('playLoopBtn').style.backgroundColor = 'var(--danger)';
         renderLoopSync();
     } else {
         userVideo.pause(); proVideo.pause();
-        getE('playLoopBtn').innerText = '🔁 Ver Loop Sincronizado';
+        userVideo.playbackRate = 1.0; proVideo.playbackRate = 1.0;
+        getE('playLoopBtn').innerText = '🔄 Comparación Sincronizada';
         getE('playLoopBtn').style.backgroundColor = 'var(--accent-hover)';
         cancelAnimationFrame(loopAnimId);
     }
@@ -668,7 +677,8 @@ playPauseBtn.addEventListener('click', async () => {
     
     // Detener modo bucle si está activo
     isLooping = false; cancelAnimationFrame(loopAnimId);
-    getE('playLoopBtn').innerText = '🔄 Ver Loop Sincronizado'; getE('playLoopBtn').style.backgroundColor = 'var(--accent-hover)';
+    userVideo.playbackRate = 1.0; proVideo.playbackRate = 1.0;
+    getE('playLoopBtn').innerText = '🔄 Comparación Sincronizada'; getE('playLoopBtn').style.backgroundColor = 'var(--accent-hover)';
     
     analysisData = { user: { times: [], knee: [], back: [], cgHeight: [], ankle: [], arm: [], head: [], pitch: [] }, pro: { times: [], knee: [], back: [], cgHeight: [], ankle: [], arm: [], head: [], pitch: [] } };
     diagnosticReport.innerHTML = '<p class="waiting-text">Sincronizando vídeos al punto de inicio...</p>';
