@@ -420,6 +420,21 @@ function processFrame(video, canvas, ctx, type, record = false) {
             const kneeAng = calcAngle3D(hip, knee, ankle);
             const backAng = calcAngle3D(shoulder, hip, verticalPoint);
             const cgHeight = calcDist3D(hip, ankle) * 100; // rel. cm
+            
+            // Historial para calcular variación de CG (amplitud en último ciclo de bombeo ~1.5s)
+            if (!window.cgHistory) window.cgHistory = { user: [], pro: [] };
+            const currentTime = video.currentTime;
+            window.cgHistory[type].push({ time: currentTime, val: cgHeight });
+            // Mantener solo datos de los últimos 1.5s. Si el vídeo salta hacia atrás (loop), limpia el historial anterior.
+            window.cgHistory[type] = window.cgHistory[type].filter(item => 
+                currentTime >= item.time && currentTime - item.time <= 1.5
+            );
+            let cgVariation = 0;
+            if (window.cgHistory[type].length > 5) {
+                const vals = window.cgHistory[type].map(i => i.val);
+                cgVariation = Math.max(...vals) - Math.min(...vals);
+            }
+            
             const ankleAng = calcAngle3D(knee, ankle, foot);
             const armAng = calcAngle3D(shoulder, elbow, wrist);
             const headAng = calcAngle3D(nose, shoulder, shoulderVertical);
@@ -452,8 +467,9 @@ function processFrame(video, canvas, ctx, type, record = false) {
                     <div class="hud-overlay-stat"><span>🏄 Tabla:</span> <span>${pitch.toFixed(1)}°</span></div>
                     <div class="hud-overlay-stat"><span>🦵 Rodilla:</span> <span>${kneeAng.toFixed(1)}°</span></div>
                     <div class="hud-overlay-stat"><span>🤸 Espalda:</span> <span>${backAng.toFixed(1)}°</span></div>
-                    <div class="hud-overlay-stat"><span>🦾 Brazos:</span> <span>${armAng.toFixed(1)}°</span></div>
+                    <div class="hud-overlay-stat"><span>💪 Brazos:</span> <span>${armAng.toFixed(1)}°</span></div>
                     <div class="hud-overlay-stat"><span>⚖️ Alt. CG:</span> <span>${cgHeight.toFixed(1)}cm</span></div>
+                    <div class="hud-overlay-stat"><span title="Variación de Altura (Amplitud) en el último ciclo de 1.5s">↕️ Var. CG:</span> <span>${cgVariation.toFixed(1)}cm</span></div>
                 `;
             } else if (hudMode === 'anchored') {
                 overlay.style.display = 'none';
@@ -471,9 +487,10 @@ function processFrame(video, canvas, ctx, type, record = false) {
                 
                 drawText(`🦵 ${kneeAng.toFixed(0)}°`, toPx(26).x + 15, toPx(26).y, color);
                 drawText(`🤸 ${backAng.toFixed(0)}°`, toPx(24).x - 60, toPx(24).y, color);
-                drawText(`🏄 ${pitch.toFixed(0)}°`, toPx(31).x, toPx(31).y + 30, color);
+                drawText(`⛵ ${pitch.toFixed(0)}°`, toPx(31).x, toPx(31).y + 30, color);
                 drawText(`⚖️ ${cgHeight.toFixed(0)}cm`, toPx(24).x + 20, toPx(24).y - 20, color);
-                drawText(`🦾 ${armAng.toFixed(0)}°`, toPx(14).x + 15, toPx(14).y, color);
+                drawText(`↕️ ${cgVariation.toFixed(0)}cm`, toPx(24).x + 20, toPx(24).y - 45, color);
+                drawText(`💪 ${armAng.toFixed(0)}°`, toPx(14).x + 15, toPx(14).y, color);
                 ctx.restore();
             }
         }
