@@ -15,8 +15,8 @@ const state = {
 };
 
 let analysisData = { 
-    user: { times: [], leftKnee: [], rightKnee: [], back: [], cgHeight: [], ankle: [], arm: [], head: [], pitch: [] }, 
-    pro: { times: [], leftKnee: [], rightKnee: [], back: [], cgHeight: [], ankle: [], arm: [], head: [], pitch: [] } 
+    user: { times: [], leftKnee: [], rightKnee: [], back: [], cgHeight: [], ankle: [], arm: [], head: [], pitch: [], maxSpan: [] }, 
+    pro: { times: [], leftKnee: [], rightKnee: [], back: [], cgHeight: [], ankle: [], arm: [], head: [], pitch: [], maxSpan: [] } 
 };
 
 async function initializeMediaPipe() {
@@ -464,6 +464,15 @@ function processFrame(video, canvas, ctx, type, record = false) {
             const distFeet = calcDist3D(leftFootIdx, rightFootIdx);
             const pitch = distFeet > 0 ? Math.asin(Math.abs(leftFootIdx.y - rightFootIdx.y) / distFeet) * (180.0 / Math.PI) : 0;
 
+            let maxDistFrame = 0;
+            for (let i = 0; i < world.length; i++) {
+                for (let j = i + 1; j < world.length; j++) {
+                    const d = calcDist3D(world[i], world[j]);
+                    if (d > maxDistFrame) maxDistFrame = d;
+                }
+            }
+            const spanCm = maxDistFrame * 100;
+
             // 2. Almacenar datos solo si se está grabando el análisis
             if (record) {
                 analysisData[type].times.push(video.currentTime);
@@ -475,6 +484,7 @@ function processFrame(video, canvas, ctx, type, record = false) {
                 analysisData[type].arm.push(armAng);
                 analysisData[type].head.push(headAng);
                 analysisData[type].pitch.push(pitch);
+                analysisData[type].maxSpan.push(spanCm);
             }
 
             // 3. RENDERIZADO VISUAL EN TIEMPO REAL (HUD)
@@ -650,6 +660,7 @@ function generateDiagnosticReport() {
     const uArm = getStats(analysisData.user.arm); const pArm = getStats(analysisData.pro.arm);
     const uHead = getStats(analysisData.user.head); const pHead = getStats(analysisData.pro.head);
     const uPitch = getStats(analysisData.user.pitch); const pPitch = getStats(analysisData.pro.pitch);
+    const uSpan = getStats(analysisData.user.maxSpan); const pSpan = getStats(analysisData.pro.maxSpan);
 
     // Temporal
     const uTemp = analyzeTemporal(analysisData.user.cgHeight, analysisData.user.times);
@@ -683,11 +694,15 @@ function generateDiagnosticReport() {
 
     let html = `<h3>📊 Dashboard de Telemetría Biomecánica</h3>`;
 
+    const uRatioSpan = uSpan.min > 0 ? (uSpan.max / uSpan.min).toFixed(2) : 0;
+    const pRatioSpan = pSpan.min > 0 ? (pSpan.max / pSpan.min).toFixed(2) : 0;
+
     html += `<div class="kpi-section-title">⏱️ Ritmo y Temporalidad</div><div class="kpi-grid">`;
     html += kpi('Cadencia', uTemp.cadence, pTemp.cadence, ' PPM');
     html += kpi('T. Compresión', uTemp.descend, pTemp.descend, 's');
     html += kpi('T. Extensión', uTemp.ascend, pTemp.ascend, 's');
     html += kpi('Ratio Subida/Bajada', uTemp.ratio, pTemp.ratio, '');
+    html += kpi('Ratio Expansión Max/Min', uRatioSpan, pRatioSpan, 'x');
     html += `</div>`;
 
     html += `<div class="kpi-section-title">🏄 Tabla y Gravedad</div><div class="kpi-grid">`;
@@ -764,7 +779,7 @@ playPauseBtn.addEventListener('click', async () => {
     userVideo.playbackRate = 1.0; proVideo.playbackRate = 1.0;
     getE('playLoopBtn').innerText = '🔄 Comparación Sincronizada'; getE('playLoopBtn').style.backgroundColor = 'var(--accent-hover)';
     
-    analysisData = { user: { times: [], leftKnee: [], rightKnee: [], back: [], cgHeight: [], ankle: [], arm: [], head: [], pitch: [] }, pro: { times: [], leftKnee: [], rightKnee: [], back: [], cgHeight: [], ankle: [], arm: [], head: [], pitch: [] } };
+    analysisData = { user: { times: [], leftKnee: [], rightKnee: [], back: [], cgHeight: [], ankle: [], arm: [], head: [], pitch: [], maxSpan: [] }, pro: { times: [], leftKnee: [], rightKnee: [], back: [], cgHeight: [], ankle: [], arm: [], head: [], pitch: [], maxSpan: [] } };
     diagnosticReport.innerHTML = '<p class="waiting-text">Sincronizando vídeos al punto de inicio...</p>';
     playPauseBtn.innerText = '⏳ Sincronizando...'; playPauseBtn.disabled = true;
 
