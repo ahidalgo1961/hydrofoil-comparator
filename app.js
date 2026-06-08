@@ -15,8 +15,8 @@ const state = {
 };
 
 let analysisData = { 
-    user: { times: [], knee: [], back: [], cgHeight: [], ankle: [], arm: [], head: [], pitch: [] }, 
-    pro: { times: [], knee: [], back: [], cgHeight: [], ankle: [], arm: [], head: [], pitch: [] } 
+    user: { times: [], leftKnee: [], rightKnee: [], back: [], cgHeight: [], ankle: [], arm: [], head: [], pitch: [] }, 
+    pro: { times: [], leftKnee: [], rightKnee: [], back: [], cgHeight: [], ankle: [], arm: [], head: [], pitch: [] } 
 };
 
 async function initializeMediaPipe() {
@@ -429,17 +429,19 @@ function processFrame(video, canvas, ctx, type, record = false) {
             const world = pose.worldLandmarks[0];
             const screenPts = pose.landmarks[0]; // Coordenadas 2D para render de texto anclado
             
-            const hip = world[24]; const knee = world[26]; const ankle = world[28]; const foot = world[32];
+            const rHip = world[24]; const rKnee = world[26]; const rAnkle = world[28]; const rFoot = world[32];
+            const lHip = world[23]; const lKnee = world[25]; const lAnkle = world[27]; const lFoot = world[31];
             const shoulder = world[12]; const elbow = world[14]; const wrist = world[16];
             const nose = world[0];
-            const verticalPoint = { x: hip.x, y: hip.y - 1.0, z: hip.z };
+            const verticalPoint = { x: rHip.x, y: rHip.y - 1.0, z: rHip.z };
             const shoulderVertical = { x: shoulder.x, y: shoulder.y - 1.0, z: shoulder.z };
             const leftFootIdx = world[31]; const rightFootIdx = world[32];
 
             // 1. Calcular Ángulos Vectoriales 3D
-            const kneeAng = calcAngle3D(hip, knee, ankle);
-            const backAng = calcAngle3D(shoulder, hip, verticalPoint);
-            const cgHeight = calcDist3D(hip, ankle) * 100; // rel. cm
+            const rKneeAng = calcAngle3D(rHip, rKnee, rAnkle);
+            const lKneeAng = calcAngle3D(lHip, lKnee, lAnkle);
+            const backAng = calcAngle3D(shoulder, rHip, verticalPoint);
+            const cgHeight = calcDist3D(rHip, rAnkle) * 100; // rel. cm
             
             // Historial para calcular variación de CG (amplitud en último ciclo de bombeo ~1.5s)
             if (!window.cgHistory) window.cgHistory = { user: [], pro: [] };
@@ -455,7 +457,7 @@ function processFrame(video, canvas, ctx, type, record = false) {
                 cgVariation = Math.max(...vals) - Math.min(...vals);
             }
             
-            const ankleAng = calcAngle3D(knee, ankle, foot);
+            const ankleAng = calcAngle3D(rKnee, rAnkle, rFoot);
             const armAng = calcAngle3D(shoulder, elbow, wrist);
             const headAng = calcAngle3D(nose, shoulder, shoulderVertical);
             
@@ -465,7 +467,8 @@ function processFrame(video, canvas, ctx, type, record = false) {
             // 2. Almacenar datos solo si se está grabando el análisis
             if (record) {
                 analysisData[type].times.push(video.currentTime);
-                analysisData[type].knee.push(kneeAng);
+                analysisData[type].leftKnee.push(lKneeAng);
+                analysisData[type].rightKnee.push(rKneeAng);
                 analysisData[type].back.push(backAng);
                 analysisData[type].cgHeight.push(cgHeight);
                 analysisData[type].ankle.push(ankleAng);
@@ -485,7 +488,8 @@ function processFrame(video, canvas, ctx, type, record = false) {
                 overlay.innerHTML = `
                     <div class="hud-overlay-title" style="color:${color}">TELEMETRÍA ${type.toUpperCase()}</div>
                     <div class="hud-overlay-stat"><span>🏄 Tabla:</span> <span>${pitch.toFixed(1)}°</span></div>
-                    <div class="hud-overlay-stat"><span>🦵 Rodilla:</span> <span>${kneeAng.toFixed(1)}°</span></div>
+                    <div class="hud-overlay-stat"><span>🦵 Rodilla L:</span> <span>${lKneeAng.toFixed(1)}°</span></div>
+                    <div class="hud-overlay-stat"><span>🦵 Rodilla R:</span> <span>${rKneeAng.toFixed(1)}°</span></div>
                     <div class="hud-overlay-stat"><span>🤸 Espalda:</span> <span>${backAng.toFixed(1)}°</span></div>
                     <div class="hud-overlay-stat"><span>💪 Brazos:</span> <span>${armAng.toFixed(1)}°</span></div>
                     <div class="hud-overlay-stat"><span>⚖️ Alt. CG:</span> <span>${cgHeight.toFixed(1)}cm</span></div>
@@ -505,7 +509,8 @@ function processFrame(video, canvas, ctx, type, record = false) {
                 // Convertir de coordenadas relativas [0..1] a píxeles del canvas actual
                 const toPx = (i) => ({ x: screenPts[i].x * canvas.width, y: screenPts[i].y * canvas.height });
                 
-                drawText(`🦵 ${kneeAng.toFixed(0)}°`, toPx(26).x + 15, toPx(26).y, color);
+                drawText(`🦵L ${lKneeAng.toFixed(0)}°`, toPx(25).x - 30, toPx(25).y, color);
+                drawText(`🦵R ${rKneeAng.toFixed(0)}°`, toPx(26).x + 15, toPx(26).y, color);
                 drawText(`🤸 ${backAng.toFixed(0)}°`, toPx(24).x - 60, toPx(24).y, color);
                 drawText(`⛵ ${pitch.toFixed(0)}°`, toPx(31).x, toPx(31).y + 30, color);
                 drawText(`⚖️ ${cgHeight.toFixed(0)}cm`, toPx(24).x + 20, toPx(24).y - 20, color);
@@ -606,9 +611,39 @@ function getStats(arr) {
     return { min: Math.round(min), max: Math.round(max), avg: Math.round(arr.reduce((a, b) => a + b, 0) / arr.length), range: Math.round(max - min) };
 }
 
+function calculatePhaseShift(times, leftArr, rightArr) {
+    if (leftArr.length < 5 || rightArr.length < 5 || times.length < 5) return 0;
+    const leftMean = leftArr.reduce((a,b)=>a+b,0)/leftArr.length;
+    const rightMean = rightArr.reduce((a,b)=>a+b,0)/rightArr.length;
+    const lNorm = leftArr.map(v => v - leftMean);
+    const rNorm = rightArr.map(v => v - rightMean);
+    
+    let maxCorr = -Infinity;
+    let bestShift = 0;
+    const N = Math.floor(lNorm.length / 3);
+    for (let shift = -N; shift <= N; shift++) {
+        let corr = 0;
+        let count = 0;
+        for (let i = 0; i < lNorm.length; i++) {
+            let j = i + shift;
+            if (j >= 0 && j < rNorm.length) {
+                corr += lNorm[i] * rNorm[j];
+                count++;
+            }
+        }
+        if (count > 0 && (corr / count) > maxCorr) {
+            maxCorr = corr / count;
+            bestShift = shift;
+        }
+    }
+    const dt = (times[times.length - 1] - times[0]) / (times.length - 1);
+    return bestShift * dt;
+}
+
 function generateDiagnosticReport() {
     // Spatial
-    const uKnee = getStats(analysisData.user.knee); const pKnee = getStats(analysisData.pro.knee);
+    const uKneeL = getStats(analysisData.user.leftKnee); const pKneeL = getStats(analysisData.pro.leftKnee);
+    const uKneeR = getStats(analysisData.user.rightKnee); const pKneeR = getStats(analysisData.pro.rightKnee);
     const uBack = getStats(analysisData.user.back); const pBack = getStats(analysisData.pro.back);
     const uCG = getStats(analysisData.user.cgHeight); const pCG = getStats(analysisData.pro.cgHeight);
     const uAnkle = getStats(analysisData.user.ankle); const pAnkle = getStats(analysisData.pro.ankle);
@@ -662,7 +697,8 @@ function generateDiagnosticReport() {
     html += `</div>`;
 
     html += `<div class="kpi-section-title">🦵 Piernas y Postura Base</div><div class="kpi-grid">`;
-    html += kpi('Flexión de Rodilla', uKnee.min, pKnee.min, '°');
+    html += kpi('Flex. Rodilla Izq', uKneeL.min, pKneeL.min, '°');
+    html += kpi('Flex. Rodilla Der', uKneeR.min, pKneeR.min, '°');
     html += kpi('Dorsiflexión Tobillo', uAnkle.avg, pAnkle.avg, '°');
     html += `</div>`;
 
@@ -672,7 +708,52 @@ function generateDiagnosticReport() {
     html += kpi('Alineación Cabeza', uHead.avg, pHead.avg, '°');
     html += `</div>`;
 
+    const uPhase = calculatePhaseShift(analysisData.user.times, analysisData.user.leftKnee, analysisData.user.rightKnee);
+    const pPhase = calculatePhaseShift(analysisData.pro.times, analysisData.pro.leftKnee, analysisData.pro.rightKnee);
+
+    html += `<div class="kpi-section-title">📉 Análisis de Desfase de Rodillas (Phase Shift)</div><div class="kpi-grid">`;
+    html += kpi('Desfase L vs R', Math.abs(uPhase).toFixed(3), Math.abs(pPhase).toFixed(3), 's');
+    html += `</div>`;
+    html += `<div style="width: 100%; max-width: 800px; margin: 20px auto; background: var(--surface-light); border-radius: 8px; padding: 20px; box-sizing: border-box;">
+        <div style="height:250px; margin-bottom: 30px;"><canvas id="kneeChartUser"></canvas></div>
+        <div style="height:250px;"><canvas id="kneeChartPro"></canvas></div>
+    </div>`;
+
     diagnosticReport.innerHTML = html;
+
+    // Render Charts
+    const renderKneeChart = (canvasId, title, times, leftData, rightData) => {
+        if (!document.getElementById(canvasId) || !window.Chart) return;
+        new Chart(document.getElementById(canvasId), {
+            type: 'line',
+            data: {
+                labels: times.map(t => t.toFixed(2)),
+                datasets: [
+                    { label: 'Rodilla Izquierda', data: leftData, borderColor: '#ec4899', backgroundColor: 'rgba(236, 72, 153, 0.1)', tension: 0.3, pointRadius: 0, borderWidth: 2 },
+                    { label: 'Rodilla Derecha', data: rightData, borderColor: '#38bdf8', backgroundColor: 'rgba(56, 189, 248, 0.1)', tension: 0.3, pointRadius: 0, borderWidth: 2 }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { labels: { color: '#fff' } }, title: { display: true, text: title, color: '#fff', font: { size: 16 } } },
+                scales: {
+                    x: { grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: '#aaa', maxTicksLimit: 10 } },
+                    y: { grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: '#aaa' } }
+                }
+            }
+        });
+    };
+
+    const uTimesRaw = analysisData.user.times;
+    const uTimes = uTimesRaw.length > 0 ? uTimesRaw.map(t => t - uTimesRaw[0]) : [];
+    const pTimesRaw = analysisData.pro.times;
+    const pTimes = pTimesRaw.length > 0 ? pTimesRaw.map(t => t - pTimesRaw[0]) : [];
+
+    setTimeout(() => {
+        renderKneeChart('kneeChartUser', 'Tú - Sincronía de Rodillas', uTimes, analysisData.user.leftKnee, analysisData.user.rightKnee);
+        renderKneeChart('kneeChartPro', 'PRO - Sincronía de Rodillas', pTimes, analysisData.pro.leftKnee, analysisData.pro.rightKnee);
+    }, 100);
 }
 
 playPauseBtn.addEventListener('click', async () => {
@@ -683,7 +764,7 @@ playPauseBtn.addEventListener('click', async () => {
     userVideo.playbackRate = 1.0; proVideo.playbackRate = 1.0;
     getE('playLoopBtn').innerText = '🔄 Comparación Sincronizada'; getE('playLoopBtn').style.backgroundColor = 'var(--accent-hover)';
     
-    analysisData = { user: { times: [], knee: [], back: [], cgHeight: [], ankle: [], arm: [], head: [], pitch: [] }, pro: { times: [], knee: [], back: [], cgHeight: [], ankle: [], arm: [], head: [], pitch: [] } };
+    analysisData = { user: { times: [], leftKnee: [], rightKnee: [], back: [], cgHeight: [], ankle: [], arm: [], head: [], pitch: [] }, pro: { times: [], leftKnee: [], rightKnee: [], back: [], cgHeight: [], ankle: [], arm: [], head: [], pitch: [] } };
     diagnosticReport.innerHTML = '<p class="waiting-text">Sincronizando vídeos al punto de inicio...</p>';
     playPauseBtn.innerText = '⏳ Sincronizando...'; playPauseBtn.disabled = true;
 
